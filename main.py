@@ -15,6 +15,7 @@ if __name__ == '__main__':
         'cumsum_check': src.explore.cumsum_check,
 
         'train': src.train.train,
+        'train_bev': src.train_bev.train,
         'eval_model_iou': src.explore.eval_model_iou,
         'viz_model_preds': src.explore.viz_model_preds,
     })
