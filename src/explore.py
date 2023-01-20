@@ -208,7 +208,7 @@ def eval_model_iou(version,
                 zbound=[-10.0, 10.0, 20.0],
                 dbound=[4.0, 45.0, 1.0],
 
-                bsz=4,
+                bsz=1, #4,
                 nworkers=10,
                 ):
     grid_conf = {
@@ -225,8 +225,9 @@ def eval_model_iou(version,
                     'rand_flip': rand_flip,
                     'bot_pct_lim': bot_pct_lim,
                     'cams': ['CAM_FRONT_LEFT', 'CAM_FRONT', 'CAM_FRONT_RIGHT',
-                             'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT'],
-                    'Ncams': 5,
+                             #'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT'
+                             ],
+                    'Ncams': 3, #5,
                 }
     trainloader, valloader = compile_data(version, dataroot, data_aug_conf=data_aug_conf,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,

@@ -123,6 +123,10 @@ class BevEncode(nn.Module):
         x = self.up1(x, x1)
         x = self.up2(x)
 
+        
+
+        x = x[0,:,100:,:]
+        #print(x.shape)
         return x
 
 
@@ -164,10 +168,15 @@ class LiftSplatShoot(nn.Module):
         return nn.Parameter(frustum, requires_grad=False)
 
     def get_geometry(self, rots, trans, intrins, post_rots, post_trans):
-        """Determine the (x,y,z) locations (in the ego frame)
+        """
+        Determine the (x,y,z) locations (in the ego frame)
         of the points in the point cloud.
         Returns B x N x D x H/downsample x W/downsample x 3
         """
+
+        """ print('rots ', rots.shape)
+        print('trans ', trans.shape)
+        print('intrins ', intrins.shape) """
         B, N, _ = trans.shape
 
         # undo post-transformation
@@ -250,8 +259,17 @@ class LiftSplatShoot(nn.Module):
         return x
 
     def forward(self, x, rots, trans, intrins, post_rots, post_trans):
+
+        """ print('##### X ', x.shape)
+        print('##### rots ', rots.shape)
+        print('##### trans ', trans.shape) """
         x = self.get_voxels(x, rots, trans, intrins, post_rots, post_trans)
+        """ print('HEREEEEE')
+        print('VOXEL ', type(x), x.shape) """
         x = self.bevencode(x)
+        #print('BEVV ENCODE ', type(x), x.shape)
+
+        #exit()
         return x
 
 

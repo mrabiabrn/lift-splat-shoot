@@ -121,8 +121,11 @@ def img_transform(img, post_rot, post_tran,
                   resize, resize_dims, crop,
                   flip, rotate):
     # adjust image
+
+    #print('RESIZE DIMS ', resize_dims)
     img = img.resize(resize_dims)
     img = img.crop(crop)
+    
     if flip:
         img = img.transpose(method=Image.FLIP_LEFT_RIGHT)
     img = img.rotate(rotate)
@@ -225,6 +228,8 @@ class SimpleLoss(torch.nn.Module):
         self.loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=torch.Tensor([pos_weight]))
 
     def forward(self, ypred, ytgt):
+        print(ypred.shape)
+        print(ytgt.shape)
         loss = self.loss_fn(ypred, ytgt)
         return loss
 
@@ -240,7 +245,7 @@ def get_batch_iou(preds, binimgs):
     return intersect, union, intersect / union if (union > 0) else 1.0
 
 
-def get_val_info(model, valloader, loss_fn, device, use_tqdm=False):
+def get_val_info(model, epoch, valloader, loss_fn, device, use_tqdm=True):
     model.eval()
     total_loss = 0.0
     total_intersect = 0.0
@@ -248,12 +253,41 @@ def get_val_info(model, valloader, loss_fn, device, use_tqdm=False):
     print('running eval...')
     loader = tqdm(valloader) if use_tqdm else valloader
     with torch.no_grad():
+        ik = 0
         for batch in loader:
             allimgs, rots, trans, intrins, post_rots, post_trans, binimgs = batch
+
+            #if epoch == 9:
+            
+
             preds = model(allimgs.to(device), rots.to(device),
-                          trans.to(device), intrins.to(device), post_rots.to(device),
-                          post_trans.to(device))
+                        trans.to(device), intrins.to(device), post_rots.to(device),
+                        post_trans.to(device))
             binimgs = binimgs.to(device)
+
+            preds_zero = torch.zeros_like(preds)
+            sig = torch.sigmoid(preds)
+            preds_zero[sig>0.5] = 1
+
+            binimgs_cropped = binimgs[0,:,100:,:]
+            binimgs = binimgs_cropped
+
+            #r = str(random.randint(0,99999999))
+            log_dir = os.path.join(os.getcwd(),'logs', str(epoch))
+            if not os.path.isdir(log_dir):
+                os.mkdir(log_dir)
+        
+            for idx,i in enumerate(allimgs[0]):
+                rang = torch.max(i) - torch.min(i)
+                plt.imshow(  ((i-torch.min(i))/rang).permute(1, 2, 0).cpu().numpy() )
+                plt.savefig(f'{log_dir}/cam{idx}.png')
+            #print('PRED zero SHAPE ', preds_zero.shape, type(preds_zero), torch.max(preds_zero))
+            plt.imshow(  preds_zero.permute(1, 2, 0).cpu().numpy()  )
+            plt.savefig(f'{log_dir}/pred{epoch}.png')
+
+            plt.imshow(  binimgs.permute(1, 2, 0).cpu().numpy()  )
+            plt.savefig(f'{log_dir}/binimg{epoch}.png')
+
 
             # loss
             total_loss += loss_fn(preds, binimgs).item() * preds.shape[0]
@@ -262,10 +296,11 @@ def get_val_info(model, valloader, loss_fn, device, use_tqdm=False):
             intersect, union, _ = get_batch_iou(preds, binimgs)
             total_intersect += intersect
             total_union += union
+            ik += 1
 
     model.train()
     return {
-            'loss': total_loss / len(valloader.dataset),
+            'loss': total_loss / len(valloader), #.dataset),
             'iou': total_intersect / total_union,
             }
 

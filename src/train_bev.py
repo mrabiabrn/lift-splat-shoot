@@ -16,7 +16,7 @@ from .tools import SimpleLoss, get_batch_iou, get_val_info
 
 
 def train(  dataroot='/home/mbarin/storage/data-transfuser/',
-            nepochs= 20, #10000,
+            nepochs= 400, #10000,
             gpuid=1,
 
             H=160, W=320, #H=900, W=1600,
@@ -73,11 +73,22 @@ def train(  dataroot='/home/mbarin/storage/data-transfuser/',
     loss_fn = SimpleLoss(pos_weight).cuda(gpuid)
 
     writer = SummaryWriter(logdir=logdir)
-    val_step = 5 #1000 if version == 'mini' else 
+    val_step = 10 #1000 if version == 'mini' else 
 
     model.train()
     counter = 0
+    """ (imgs, rots, trans, intrins, post_rots, post_trans, binimgs) = next(iter(trainloader))
+
+    import matplotlib.pyplot as plt
+    plt.imshow(   binimgs[0].permute(1, 2, 0).cpu().numpy()  )
+    plt.savefig(f'logs/binimg_FULL_bev.png')
+
+    print('BINNNG ', binimgs.shape)
+    binimgs_cropped = binimgs[0,:,100:,:]
+    binimgs = binimgs_cropped """
+
     for epoch in range(nepochs):
+        print('#### EPOCH ', epoch)
         np.random.seed()
         for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, binimgs) in enumerate(trainloader):
             t0 = time()
@@ -89,11 +100,19 @@ def train(  dataroot='/home/mbarin/storage/data-transfuser/',
                     post_rots.to(device),
                     post_trans.to(device),
                     )
+            """ 
             print('PREDS ', type(preds), preds.shape)
-            print('BINIMGS ', type(binimgs) , binimgs.shape)
+            print('BINIMGS ', type(binimgs) , binimgs.shape) 
+            """
 
-            #print('BINIMGS ', type(binimgs) , binimgs.shape)
-            #exit()
+            import matplotlib.pyplot as plt
+            plt.imshow(   binimgs[0].permute(1, 2, 0).cpu().numpy()  )
+            plt.savefig(f'logs/binimg_FULL_bev.png')
+
+            #print('BINNNG ', binimgs.shape)
+            binimgs_cropped = binimgs[0,:,100:,:]
+            binimgs = binimgs_cropped
+
             binimgs = binimgs.to(device)
             loss = loss_fn(preds, binimgs)
             loss.backward()
@@ -102,17 +121,18 @@ def train(  dataroot='/home/mbarin/storage/data-transfuser/',
             counter += 1
             t1 = time()
 
-            if counter % 10 == 0:
+            if counter % 1 == 0:
                 print(counter, loss.item())
                 writer.add_scalar('train/loss', loss, counter)
 
-            if counter % 50 == 0:
+            if counter % 1 == 0:
                 _, _, iou = get_batch_iou(preds, binimgs)
                 writer.add_scalar('train/iou', iou, counter)
                 writer.add_scalar('train/epoch', epoch, counter)
                 writer.add_scalar('train/step_time', t1 - t0, counter)
 
             if counter % val_step == 0:
+                valloader = [next(iter(valloader))] #[(imgs, rots, trans, intrins, post_rots, post_trans, binimgs)] # TODO: Added for overfitting
                 val_info = get_val_info(model, epoch, valloader, loss_fn, device)
                 print('VAL', val_info)
                 writer.add_scalar('val/loss', val_info['loss'], counter)

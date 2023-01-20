@@ -145,13 +145,6 @@ class BEVDataset(Dataset):
                 transform,
                 zero_out_red_channel,
                 data_aug_conf,
-                #seqlen,
-                #refcam_id,
-                #get_tids,
-                #res_3d,
-                #bounds,
-                #centroid,
-                #cams,
                 rgb_cam_configs = {},
                 use_radar_filters = False,
                 do_shuffle_cams = False,
@@ -228,9 +221,9 @@ class BEVDataset(Dataset):
             dataset += [path for path in img_paths]
 
 
-        dataset = [dataset[0]] # YOU TRY OVERFITTING!!!!
+        #dataset = [dataset[49]] # YOU TRY OVERFITTING!!!!
 
-        print('DATASET ' , dataset)
+        #print('DATASET ' , dataset)
 
 
         print(f"Detected {len(dataset)} images in split {self.split}")
@@ -273,10 +266,10 @@ class BEVDataset(Dataset):
 
     def sample_augmentation(self):
         H, W = self.data_aug_conf['H'], self.data_aug_conf['W']
-        print('H ', H, ' W ', W) 
+        #print('H ', H, ' W ', W) 
         fH, fW = self.data_aug_conf['final_dim']
 
-        print('ffH ', fH, 'fW ', fW )
+        #print('ffH ', fH, 'fW ', fW )
         if self.split == 'train':
             #resize = np.random.uniform(*self.data_aug_conf['resize_lim'])
             resize = 1
@@ -330,6 +323,7 @@ class BEVDataset(Dataset):
         # take the upper part of the topdown view 
         _, H, W = topdown.shape
         topdown_t = topdown #topdown[:,:H//2,:] #[:,H//2:(H//2+self.Z),:]
+        
 
         #print('topdowb shape ' , topdown_t.shape)
 
@@ -338,6 +332,7 @@ class BEVDataset(Dataset):
 
         # TODO: transform topdown img based on model input img. 
         topdown =  transforms.functional.center_crop(topdown_t,(self.X,self.Z))
+        topdown = transforms.functional.rotate(topdown,180)
         topdown = transforms.functional.rgb_to_grayscale(topdown).squeeze()
 
         topdown[topdown!=0.0]=1
@@ -391,14 +386,14 @@ class BEVDataset(Dataset):
             post_rot = torch.eye(2)
             post_tran = torch.zeros(2)
 
-            print('INDEX ' , idx)
-            print(torch.max(img), torch.min(img))
+            """ print('INDEX ' , idx)
+            print(torch.max(img), torch.min(img)) """
 
             plt.imshow( img.permute(1, 2, 0).cpu().numpy()  )
             plt.savefig(f'./images/rgb{idx}.png')
 
-            print('POST ROT ', post_rot)
-            print('POST TRAN ', post_tran)
+            """ print('POST ROT ', post_rot)
+            print('POST TRAN ', post_tran) """
 
             img = to_pil(img)
             resize, resize_dims, crop, flip, rotate = self.sample_augmentation()
@@ -429,27 +424,7 @@ class BEVDataset(Dataset):
 
         imgs, rots, trans, intrins, post_rots, post_trans = self.get_image_data(rgb_path)  # rot , trans of the rgb cameras
         
-        """ img_ref = imgs[self.refcam_id].clone()
-        img_0 = imgs[0].clone()
-        imgs[0] = img_ref
-        imgs[self.refcam_id] = img_0
-
-        rot_ref = rots[self.refcam_id].clone()
-        rot_0 = rots[0].clone()
-        rots[0] = rot_ref
-        rots[self.refcam_id] = rot_0
-        
-        tran_ref = trans[self.refcam_id].clone()
-        tran_0 = trans[0].clone()
-        trans[0] = tran_ref
-        trans[self.refcam_id] = tran_0
-
-        intrin_ref = intrins[self.refcam_id].clone()
-        intrin_0 = intrins[0].clone()
-        intrins[0] = intrin_ref
-        intrins[self.refcam_id] = intrin_0
-        
-        egopose = self.get_egopose_4x4matrix(rgb_path) """
+        egopose = self.get_egopose_4x4matrix(rgb_path)
         binimg = self.get_binimg(rgb_path)
 
         """ print('SEG BEV SHAPE ', seg_bev.shape)
@@ -463,6 +438,16 @@ class BEVDataset(Dataset):
         plt.show()
         """
 
+        #print('#### CAMS ', cams)
+        """ print('#### IMGS ', type(imgs), imgs.shape)
+        print('#### GT ', type(binimg), binimg.shape)
+        print('#### rots ', rots.shape, rots)
+        print('#### trans ', trans.shape, trans)
+        print('#### post_rots ', post_rots)
+        print('#### post_ trans ', post_trans)
+
+        exit()
+        """
         return imgs, rots, trans, intrins, post_rots, post_trans, binimg
 
 
@@ -483,20 +468,9 @@ def worker_rnd_init(x):
 def compile_data(data_dir, 
                  data_aug_conf,
                  grid_conf, 
-                 #centroid, 
-                 #bounds, 
-                 #res_3d, 
                  bsz,
                  nworkers, 
                  shuffle=True, 
-                 #nsweeps=1, 
-                 #nworkers_val=1, 
-                 #seqlen=1, 
-                 #refcam_id=1, 
-                 #get_tids=False,
-                 #temporal_aug=False, 
-                 #use_radar_filters=False, 
-                 #do_shuffle_cams=True,
                  ):
 
     
@@ -505,23 +479,12 @@ def compile_data(data_dir,
     print('dataroot ', data_dir)
 
 
-
     traindata = BEVDataset(data_path=data_dir,
                             split='train', 
                             image_folder='rgb',
                             transform = None,
                             zero_out_red_channel=True,
                             data_aug_conf=data_aug_conf,
-                            #nsweeps=nsweeps,
-                            #centroid=centroid,
-                            #bounds=bounds,
-                            #res_3d=res_3d,
-                            #seqlen=seqlen,
-                            #refcam_id=refcam_id,
-                            #get_tids=get_tids,
-                            #temporal_aug=temporal_aug,
-                            #use_radar_filters=use_radar_filters,
-                            #do_shuffle_cams=do_shuffle_cams
                             )
     valdata = BEVDataset(data_path=data_dir,
                             split='val', 
@@ -529,9 +492,6 @@ def compile_data(data_dir,
                             transform = None,
                             zero_out_red_channel=True,
                             data_aug_conf=data_aug_conf,
-                            #nsweeps=nsweeps,
-                            #centroid=centroid,
-                            #bounds=bounds,
                             )
 
     trainloader = torch.utils.data.DataLoader(
